@@ -1,0 +1,11 @@
+{
+  "name": "block-chain",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/immortalmind2016/block-chain-js.git",
+  "author": "Mohamed Salah <immortal.mind2016@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "crypto-js": "^4.1.1"
+  }
+}
