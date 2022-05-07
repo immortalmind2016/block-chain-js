@@ -1,10 +1,19 @@
 const { SHA256 } = require("crypto-js");
+
+class Transaction{
+    constructor(fromAddress,toAddress,amount){
+        this.fromAddress=fromAddress;
+        this.toAddress=toAddress;
+        this.amount=amount;
+    }
+    //to store the pending transaction between the 10 min interval because of our proof of work difficulty 
+}
+
 class Block {
   //previous hash to ensure the integrity
-  constructor(index, timestamp, data, previousHash = "") {
-    this.index = index;
+  constructor(timestamp, transactions, previousHash = "") {
     this.timestamp = timestamp;
-    this.data = data;
+    this.transactions = transactions;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
     //a random number to change it if we want to recreate a new hash without changing any real data
@@ -13,10 +22,9 @@ class Block {
 
   calculateHash() {
     return SHA256(
-      this.index +
         this.previousHash +
         this.timestamp +
-        JSON.stringify(this.data) +
+        JSON.stringify(this.transactions) +
         this.nonce
     ).toString();
   }
@@ -37,20 +45,53 @@ class BlockChain {
   constructor() {
     this.chain = [this.createGenesisBlock()];
     this.difficulty=5
+    this.pendingTransactions=[]
+    this.miningReward=100;
   }
 
   //Create Genesis block
   createGenesisBlock() {
-    return new Block(0, "01/01/2022", "Genesis Block", "0");
+    return new Block("01/01/2022", "Genesis Block", "0");
   }
   getLatestBlock() {
     return this.chain[this.chain.length - 1];
   }
   addBlock(newBlock) {
-    newBlock.previousHash = this.getLatestBlock().hash;
+    newBlock.previousHash = this.getLatestBlock().hash; 
     newBlock.mineBlock(this.difficulty);
 
     this.chain.push(newBlock);
+  }
+
+  minePendingTransactions(miningRewardAddress){
+   let block=new Block(Date.now(),this.pendingTransactions);
+   block.mineBlock(this.difficulty);
+   
+   console.log("Block  successfully mined!")
+   this.chain.push(block);
+   this.pendingTransactions=[
+       //null = > means it comes from the system
+       new Transaction(null,miningRewardAddress,this.miningReward)
+   ]
+  }
+
+  createTransaction(transaction){
+      this.pendingTransactions.push(transaction)
+  }
+
+  getBalanceOfAddress(address){
+      let balance=0;
+      for(const block of this.chain){
+          for(const trans of block.transactions){
+              if(trans.toAddress===address){
+                  balance+=trans.amount
+              }
+              if(trans.fromAddress===address){
+                balance-=trans.amount
+            }
+          }
+      }
+      return balance
   }
 
   //Check the integrity
@@ -72,24 +113,16 @@ class BlockChain {
 }
 
 let moCoin = new BlockChain();
+//in reality address 1 and address 2 will be the public key of someone's wallet
+moCoin.createTransaction(new Transaction("address1","address2",100));
+moCoin.createTransaction(new Transaction("address1","address2",50))
 
-console.log("Mining Block 1...")
-moCoin.addBlock(new Block(1, "10/01/2022", { amount: 4 }));
-console.log("Mining Block 2...")
-moCoin.addBlock(new Block(1, "20/01/2022", { amount: 5 }));
-console.log("Mining Block 3...")
-moCoin.addBlock(new Block(1, "30/01/2022", { amount: 6 }));
+console.log("\n starting the miner")
+moCoin.minePendingTransactions("mo-address");
 
-console.log(JSON.stringify(moCoin, null, 4));
+console.log("\n address of mo is ",moCoin.getBalanceOfAddress("mo-address"))
 
-//Expected output will be true
-console.log("Is blockchain valid? ", moCoin.isChainValid());
+console.log("\n starting the miner again")
+moCoin.minePendingTransactions("mo-address");
 
-moCoin.chain[1].data = { amount: 500 };
-//Expected output will be false
-console.log("Is blockchain valid? ", moCoin.isChainValid());
-
-//So smart !!
-moCoin.chain[1].hash = moCoin.chain[1].calculateHash();
-//Expected output will be false , because the relation with the prev block is broken
-console.log("Is blockchain valid? ", moCoin.isChainValid());
+console.log("\n address of mo is ",moCoin.getBalanceOfAddress("mo-address"))
